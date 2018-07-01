@@ -216,7 +216,7 @@ export class TerminusHtermScrollbar extends HTMLElement {
 			return;
 		}
 
-		this.screen.scrollTo(0, newY);
+		this.screen.scrollTop = newY;
 		this.lastScrollTop = this.screen.scrollTop;
 		this.scrollIsDebounced = true;
 

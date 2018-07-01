@@ -56,12 +56,6 @@ export class ScrollbarService {
 		scrollbar.attachToTerminal(tab);
 
 		this.knownTabs.set(tab, new Tab(tab, scrollbar));
-
-		// REMOVE - For debugging
-		// @ts-ignore
-		window.tab = tab;
-		// @ts-ignore
-		window.scrollbar = scrollbar;
 	}
 }
 
