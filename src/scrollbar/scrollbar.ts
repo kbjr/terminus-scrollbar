@@ -274,7 +274,7 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		if (display !== 'none' || parseFloat(opacity) !== 0) {
 			this.track.style.opacity = '0';
 
-			setTimeout(() => this.track.style.display = 'none', 300);
+			setTimeout(() => this.track.style.display = 'none', 1000);
 		}
 	}
 
@@ -285,6 +285,19 @@ export class TerminusHtermScrollbar extends HTMLElement {
 	onTrackClick = (click : MouseEvent) : void => {
 		click.preventDefault();
 		click.stopPropagation();
+
+		// Determine where to move the handle based on where the user click
+		const clickPosition = click.pageY - this.track.getBoundingClientRect().top;
+		const newHandlePosition = clickPosition - (this.handle.offsetHeight / 2);
+
+		// Move the handle
+		this.moveHandleToPosition(newHandlePosition);
+
+		// Determine the new scroll percent based on where the handle moved to
+		const newPercent = this.determineNewScrollPercentFromHandle();
+
+		// Scroll the terminal to match
+		this.scrollTerminalToPercent(newPercent);
 	}
 
 	onHandleMouseDown = (mouseDown : MouseEvent) : void => {

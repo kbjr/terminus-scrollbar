@@ -42,6 +42,7 @@
   bottom: 10px;
   width: var(--scrollbar-width);
   background-color: var(--scrollbar-track-color);
+  transition: opacity linear 1s;
 }
 
 .handle {
