@@ -337,6 +337,6 @@ export class TerminusHtermScrollbar extends HTMLElement {
 	handleInternalScroll = () : void => {
 		const newPercent = this.getCurrentTerminalScrollPercent();
 
-		this.moveHandleToScrollPercent(newPercent);
+		this.moveHandleToPercent(newPercent);
 	}
 }
