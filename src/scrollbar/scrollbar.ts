@@ -59,6 +59,7 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		// The terminal tab component that we will be creating a scrollbar for
 		this.terminal = terminal;
 
+		// Start listening to terminal events so we know when something changes that requires a redraw
 		this.terminalSubscriptions.push(
 			this.terminal.resize$.subscribe(this.onTerminalUpdate),
 			this.terminal.input$.subscribe(this.onTerminalUpdate),
@@ -87,6 +88,8 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		this.terminalSubscriptions.forEach((subscription) => {
 			subscription.unsubscribe();
 		});
+
+		this.terminalSubscriptions.length = 0;
 
 		// Remove the references to the terminal
 		this.terminal = null;
