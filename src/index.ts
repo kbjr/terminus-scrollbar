@@ -2,9 +2,15 @@
 import './scrollbar';
 import { NgModule } from '@angular/core';
 
-@NgModule({ })
-export default class TitleControlModule {
-	constructor() {
-		// Init the plugin here
+import { ScrollbarService } from './services/scrollbar';
+
+@NgModule({
+	providers: [
+		ScrollbarService,
+	]
+})
+export default class ScrollbarModule {
+	constructor(private service: ScrollbarService) {
+		this.service.init();
 	}
 }

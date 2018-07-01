@@ -3,9 +3,10 @@ import { Subscription } from 'rxjs';
 import { TerminalTabComponent } from 'terminus-terminal';
 
 const scrollDebounce = 50;
-const renderDebounce = 50;
+const renderDebounce = 16;
 
 export class TerminusHtermScrollbar extends HTMLElement {
+	private shadow: ShadowRoot;
 	private connected: boolean = false;
 	private terminal: TerminalTabComponent;
 	private terminalSubscriptions: Array<Subscription> = [ ];
@@ -26,11 +27,13 @@ export class TerminusHtermScrollbar extends HTMLElement {
 	constructor() {
 		super();
 
+		this.shadow = this.attachShadow({ mode: 'open' });
+
 		// Bind the css to the shadow root
-		this.innerHTML = `<style>${require('./scrollbar.scss')}</style>`;
+		this.shadow.innerHTML = `<style>${require('./scrollbar.scss')}</style>`;
 
 		// Create the actual scrollbar DOM
-		this.track = this.appendChild(document.createElement('div'));
+		this.track = this.shadow.appendChild(document.createElement('div'));
 		this.handle = this.track.appendChild(document.createElement('div'));
 
 		this.track.className = 'track';
@@ -72,9 +75,6 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		this.lastScrollTop = this.screen.scrollTop;
 		this.lastScrollHeight = this.screen.scrollHeight;
 
-		// Inject the needed CSS into the frame to allow turning off text selection
-		this.frame.contentDocument.head.innerHTML += `<style>${require('./frame-styles.scss')}</style>`;
-
 		// Listen for scroll events to update the scrollbar when someone scrolls with mousewheel
 		this.screen.addEventListener('scroll', this.handleInternalScroll);
 	}
@@ -105,7 +105,10 @@ export class TerminusHtermScrollbar extends HTMLElement {
 
 	onTerminalUpdate = () : void => {
 		if (this.lastScrollTop !== this.screen.scrollTop || this.lastScrollHeight !== this.screen.scrollHeight) {
-			this.render();
+			setTimeout(() => {
+				this.render();
+				this.handleInternalScroll();
+			}, 150);
 		}
 
 		this.lastScrollTop = this.screen.scrollTop;
@@ -145,8 +148,8 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		// If we've made it this far, make sure the element is visible
 		this.fadeIn();
 
-		const newHandleHeightPercent = Math.max(this.getTerminalScrollableAmount() / 5000, 1);
-		const newHeight = this.track.offsetHeight * newHandleHeightPercent;
+		const outputScreenCount = Math.max(this.getTerminalScrollableAmount() / this.screen.offsetHeight, 1);
+		const newHeight = this.track.offsetHeight / outputScreenCount;
 
 		// Update the handle height (this changes based on the amount of scrollable buffer)
 		this.handle.style.height = newHeight + 'px';
@@ -187,7 +190,7 @@ export class TerminusHtermScrollbar extends HTMLElement {
 	}
 
 	moveHandleToPosition(position : number) : void {
-		this.handle.style.top = position + 'px';
+		this.handle.style.top = Math.max(0, Math.min(this.getAvailableScrollSpace(), position)) + 'px';
 	}
 
 
@@ -289,16 +292,13 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		mouseDown.preventDefault();
 		mouseDown.stopPropagation();
 
+		// Add a class to the scrollbar so it can be styled while dragging
+		this.classList.add('dragging');
+
 		// Bind the needed event listeners to track dragging the handle
 		this.moveHandler = this.onHandleMouseMove(mouseDown.clientY) as EventListener;
-		this.handle.addEventListener('mousemove', this.moveHandler);
+		document.addEventListener('mousemove', this.moveHandler);
 		document.addEventListener('mouseup', this.onMouseUp);
-
-		// Prevent text selection in the frame while scrolling
-		this.frame.contentDocument.body.setAttribute('data-scrolling', 'scrolling');
-
-		// Add a class to the handle so it can be styled while dragging
-		this.handle.classList.add('dragging');
 	}
 
 	onHandleMouseMove = (startingMouseY : number) : Function => {
@@ -324,14 +324,14 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		mouseUp.preventDefault();
 		mouseUp.stopPropagation();
 
+		// Remove the drag active class
+		this.classList.remove('dragging');
+
 		// Remove the event listeners for dragging
-		this.handle.removeEventListener('mousemove', this.moveHandler);
+		document.removeEventListener('mousemove', this.moveHandler);
 		this.moveHandler = null;
 
 		document.removeEventListener('mouseup', this.onMouseUp);
-
-		// Allow text selection in the frame again
-		this.frame.contentDocument.body.removeAttribute('data-scrolling');
 	}
 
 	handleInternalScroll = () : void => {

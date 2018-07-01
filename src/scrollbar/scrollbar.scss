@@ -15,6 +15,9 @@
 :host {
   --scrollbar-min-handle-size: 50px;
   --scrollbar-width: 8px;
+  --scrollbar-track-color: #2d373d;
+  --scrollbar-handle-color: #7c8c9c;
+  --scrollbar-border-color: #000;
   
   display: block;
   z-index: 200;
@@ -22,8 +25,12 @@
   // Required to avoid a bug where the animated opacity creates an unwanted stacking context
   position: absolute;
   top: 0;
-  right: 0;
+  right: calc(0px - var(--scrollbar-width));
   bottom: 0;
+}
+
+:host(.dragging) {
+  left: 0;
 }
 
 .track {
@@ -33,9 +40,19 @@
   top: 10px;
   right: 10px;
   bottom: 10px;
+  width: var(--scrollbar-width);
+  background-color: var(--scrollbar-track-color);
 }
 
 .handle {
   border-radius: var(--scrollbar-width);
   min-height: var(--scrollbar-min-handle-size);
+  width: var(--scrollbar-width);
+  background-color: var(--scrollbar-handle-color);
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 1px transparent solid;
+  border-color: var(--scrollbar-border-color);
+  cursor: pointer;
 }
