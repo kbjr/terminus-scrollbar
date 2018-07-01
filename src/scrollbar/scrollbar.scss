@@ -38,7 +38,7 @@
   overflow: hidden;
   position: absolute;
   top: 10px;
-  right: 10px;
+  right: var(--scrollbar-width);
   bottom: 10px;
   width: var(--scrollbar-width);
   background-color: var(--scrollbar-track-color);
