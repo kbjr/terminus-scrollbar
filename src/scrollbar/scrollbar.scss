@@ -1,7 +1,6 @@
 
 :host,
 :host * {
-  --scrollbar-width: 8px;
   border: 0;
   box-sizing: border-box;
   font: inherit;
@@ -14,6 +13,9 @@
 }
 
 :host {
+  --scrollbar-min-handle-size: 50px;
+  --scrollbar-width: 8px;
+  
   display: block;
   z-index: 200;
 
@@ -35,5 +37,5 @@
 
 .handle {
   border-radius: var(--scrollbar-width);
-  min-height: 50px;
+  min-height: var(--scrollbar-min-handle-size);
 }

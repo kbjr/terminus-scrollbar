@@ -1,6 +1,14 @@
 
+import { Subscription } from 'rxjs';
+import { TerminalTabComponent } from 'terminus-terminal';
+
+const scrollDebounce = 50;
+const renderDebounce = 50;
+
 export class TerminusHtermScrollbar extends HTMLElement {
 	private connected: boolean = false;
+	private terminal: TerminalTabComponent;
+	private terminalSubscriptions: Array<Subscription> = [ ];
 	private frame: HTMLIFrameElement;
 	private screen: HTMLElement;
 	private track: HTMLDivElement;
@@ -10,8 +18,10 @@ export class TerminusHtermScrollbar extends HTMLElement {
 	private moveHandler: EventListener;
 	private nextScrollY: number = null;
 	private scrollIsDebounced: boolean = false;
-	private desiredHandlePosition: number = 0;
-	private desiredHandleHeight: number;
+	private renderIsDebounced: boolean = false;
+	private renderIsDesired: boolean = false;
+	private desiredHandlePosition: number = null;
+	private desiredHandlePercent: number = null;
 
 	constructor() {
 		super();
@@ -42,12 +52,21 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		this.connected = false;
 	}
 
-	attachToHTerm(frame: HTMLIFrameElement) : void {
+	attachToTerminal(terminal: TerminalTabComponent) : void {
+		// The terminal tab component that we will be creating a scrollbar for
+		this.terminal = terminal;
+
+		this.terminalSubscriptions.push(
+			this.terminal.resize$.subscribe(this.onTerminalUpdate),
+			this.terminal.input$.subscribe(this.onTerminalUpdate),
+			this.terminal.output$.subscribe(this.onTerminalUpdate),
+		);
+
 		// The iframe that HTerm is hosted in
-		this.frame = frame;
+		this.frame = terminal.content.nativeElement.querySelector('iframe');
 
 		// The x-screen element inside the frame that actually renders the terminal
-		this.screen = frame.contentDocument.querySelector('x-screen');
+		this.screen = this.frame.contentDocument.querySelector('x-screen');
 
 		// Set the last known scroll info; used to detect changes that require a redraw
 		this.lastScrollTop = this.screen.scrollTop;
@@ -60,11 +79,17 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		this.screen.addEventListener('scroll', this.handleInternalScroll);
 	}
 
-	detachFromHTerm() : void {
+	detachFromTerminal() : void {
 		// Stop listening to scroll events
 		this.screen.removeEventListener('scroll', this.handleInternalScroll);
 
+		// Stop listening to terminal events
+		this.terminalSubscriptions.forEach((subscription) => {
+			subscription.unsubscribe();
+		});
+
 		// Remove the references to the terminal
+		this.terminal = null;
 		this.frame = null;
 		this.screen = null;
 		this.lastScrollTop = null;
@@ -72,6 +97,19 @@ export class TerminusHtermScrollbar extends HTMLElement {
 
 		// Hide the scrollbar as it is no longer connected to anything
 		this.track.style.display = 'none';
+	}
+
+
+
+	// Handlers connected to HTerm
+
+	onTerminalUpdate = () : void => {
+		if (this.lastScrollTop !== this.screen.scrollTop || this.lastScrollHeight !== this.screen.scrollHeight) {
+			this.render();
+		}
+
+		this.lastScrollTop = this.screen.scrollTop;
+		this.lastScrollHeight = this.screen.scrollHeight;
 	}
 
 
@@ -92,17 +130,64 @@ export class TerminusHtermScrollbar extends HTMLElement {
 			return;
 		}
 
-		const availableRenderSpace = this.parentElement.offsetHeight;
+		// If the render is currently debounced, just make it known that we would like to render, and
+		// wait for the debounce to clear
+		if (this.renderIsDebounced) {
+			this.renderIsDesired = true;
 
-		// 
+			return;
+		}
+
+		// Debounce to ensure we don't render too often
+		this.renderIsDebounced = true;
+		setTimeout(this.handleDebouncedRender, renderDebounce);
 
 		// If we've made it this far, make sure the element is visible
 		this.fadeIn();
 
-		// If we need to move the handle, do so
-		if (this.desiredHandlePosition !== this.handle.offsetTop) {
-			this.handle.style.top = this.desiredHandlePosition + 'px';
+		const newHandleHeightPercent = Math.max(this.getTerminalScrollableAmount() / 5000, 1);
+		const newHeight = this.track.offsetHeight * newHandleHeightPercent;
+
+		// Update the handle height (this changes based on the amount of scrollable buffer)
+		this.handle.style.height = newHeight + 'px';
+
+		// If a given position is desired, move there
+		if (this.desiredHandlePosition != null) {
+			this.moveHandleToPosition(this.desiredHandlePosition);
 		}
+
+		// If a given percent is desired, move there. Otherwise, update to match the state of the terminal
+		else {
+			const scrollPercent = this.desiredHandlePercent == null
+				? this.getCurrentTerminalScrollPercent()
+				: this.desiredHandlePercent;
+
+			this.moveHandleToPercent(scrollPercent);
+		}
+		
+		// Clear out the state about where to move
+		this.desiredHandlePosition = null;
+		this.desiredHandlePercent = null;
+	}
+
+	handleDebouncedRender = () : void => {
+		this.renderIsDebounced = false;
+
+		if (this.renderIsDesired) {
+			this.renderIsDesired = false;
+			this.render();
+		}
+	}
+
+	moveHandleToPercent(percent : number) : void {
+		const availableSpace = this.getAvailableScrollSpace();
+		const newScrollPosition = availableSpace * percent;
+
+		this.moveHandleToPosition(newScrollPosition);
+	}
+
+	moveHandleToPosition(position : number) : void {
+		this.handle.style.top = position + 'px';
 	}
 
 
@@ -132,7 +217,7 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		this.lastScrollTop = this.screen.scrollTop;
 		this.scrollIsDebounced = true;
 
-		setTimeout(this.handleDebouncedScroll, 50);
+		setTimeout(this.handleDebouncedScroll, scrollDebounce);
 	}
 
 	handleDebouncedScroll = () : void => {
@@ -145,7 +230,7 @@ export class TerminusHtermScrollbar extends HTMLElement {
 	}
 
 	scrollTerminalToPercent(percent : number) : void {
-		const newY = this.getScrollableAmount() * percent;
+		const newY = this.getTerminalScrollableAmount() * percent;
 
 		this.scrollTerminal(newY);
 	}
@@ -155,10 +240,10 @@ export class TerminusHtermScrollbar extends HTMLElement {
 	// Functions for accessing information about the current state of the terminal
 
 	getCurrentTerminalScrollPercent() : number {
-		return this.screen.scrollTop / this.getScrollableAmount();
+		return this.screen.scrollTop / this.getTerminalScrollableAmount();
 	}
 
-	getScrollableAmount() : number {
+	getTerminalScrollableAmount() : number {
 		return this.screen.scrollHeight - this.screen.offsetHeight;
 	}
 
@@ -225,7 +310,7 @@ export class TerminusHtermScrollbar extends HTMLElement {
 
 			const mouseYDelta = mouseMove.clientY - startingMouseY;
 
-			this.desiredHandlePosition = startingHandleY + mouseYDelta;
+			this.desiredHandlePosition = Math.max(startingHandleY + mouseYDelta, 0);
 
 			// Update the scrollbar UI
 			this.render();
@@ -247,10 +332,6 @@ export class TerminusHtermScrollbar extends HTMLElement {
 
 		// Allow text selection in the frame again
 		this.frame.contentDocument.body.removeAttribute('data-scrolling');
-	}
-
-	handleDragScroll() {
-		// 
 	}
 
 	handleInternalScroll = () : void => {
