@@ -1,6 +1,6 @@
 {
   "name": "terminus-scrollbar",
-  "version": "0.2.0-0",
+  "version": "0.2.0-1",
   "description": "Scrollbar plugin for terminal panes in Terminus",
   "keywords": [
     "terminus-plugin"
