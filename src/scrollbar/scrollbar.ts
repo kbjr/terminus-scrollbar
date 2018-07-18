@@ -78,7 +78,7 @@ export class TerminusHtermScrollbar extends HTMLElement {
 			this.terminal.resize$.subscribe(this.onTerminalUpdate),
 			this.terminal.input$.subscribe(this.onTerminalUpdate),
 			this.terminal.output$.subscribe(this.onTerminalUpdate),
-			this.terminal.alternateScreenActive$.subscribe(this.onTerminalUpdate)
+			this.terminal.alternateScreenActive$.subscribe(this.onAlternateScreenChange)
 		);
 	}
 
