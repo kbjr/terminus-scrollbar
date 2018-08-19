@@ -1,16 +1,13 @@
 
 import './scrollbar';
 import { NgModule } from '@angular/core';
+import { TerminalDecorator } from 'terminus-terminal';
 
-import { ScrollbarService } from './services/scrollbar';
+import { ScrollbarDecorator } from './decorator';
 
 @NgModule({
 	providers: [
-		ScrollbarService,
+		{ provide: TerminalDecorator, useClass: ScrollbarDecorator, multi: true },
 	]
 })
-export default class ScrollbarModule {
-	constructor(private service: ScrollbarService) {
-		this.service.init();
-	}
-}
+export default class ScrollbarModule { }
