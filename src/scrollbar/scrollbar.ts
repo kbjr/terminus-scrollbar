@@ -23,6 +23,7 @@ export class TerminusHtermScrollbar extends HTMLElement {
 	private renderIsDesired: boolean = false;
 	private desiredHandlePosition: number = null;
 	private desiredHandlePercent: number = null;
+	private alternateScreenActive: boolean = null;
 
 	constructor() {
 		super();
@@ -59,14 +60,6 @@ export class TerminusHtermScrollbar extends HTMLElement {
 		// The terminal tab component that we will be creating a scrollbar for
 		this.terminal = terminal;
 
-		// Start listening to terminal events so we know when something changes that requires a redraw
-		this.terminalSubscriptions.push(
-			this.terminal.resize$.subscribe(this.onTerminalUpdate),
-			this.terminal.input$.subscribe(this.onTerminalUpdate),
-			this.terminal.output$.subscribe(this.onTerminalUpdate),
-			this.terminal.alternateScreenActive$.subscribe(this.onTerminalUpdate)
-		);
-
 		// The iframe that HTerm is hosted in
 		this.frame = terminal.content.nativeElement.querySelector('iframe');
 
@@ -79,6 +72,14 @@ export class TerminusHtermScrollbar extends HTMLElement {
 
 		// Listen for scroll events to update the scrollbar when someone scrolls with mousewheel
 		this.screen.addEventListener('scroll', this.handleInternalScroll);
+
+		// Start listening to terminal events so we know when something changes that requires a redraw
+		this.terminalSubscriptions.push(
+			this.terminal.resize$.subscribe(this.onTerminalUpdate),
+			this.terminal.input$.subscribe(this.onTerminalUpdate),
+			this.terminal.output$.subscribe(this.onTerminalUpdate),
+			this.terminal.alternateScreenActive$.subscribe(this.onAlternateScreenChange)
+		);
 	}
 
 	detachFromTerminal() : void {
@@ -108,15 +109,32 @@ export class TerminusHtermScrollbar extends HTMLElement {
 	// Handlers connected to HTerm
 
 	onTerminalUpdate = () : void => {
-		if (this.lastScrollTop !== this.screen.scrollTop || this.lastScrollHeight !== this.screen.scrollHeight) {
-			setTimeout(() => {
-				this.render();
-				this.handleInternalScroll();
-			}, 150);
+		setTimeout(() => {
+			if (this.lastScrollTop !== this.screen.scrollTop || this.lastScrollHeight !== this.screen.scrollHeight) {
+				setTimeout(() => {
+					this.render();
+					this.handleInternalScroll();
+				}, 150);
+			}
+
+			this.lastScrollTop = this.screen.scrollTop;
+			this.lastScrollHeight = this.screen.scrollHeight;
+		}, 50);
+	}
+
+	onAlternateScreenChange = (isActive : boolean) : void => {
+		if (isActive) {
+			this.alternateScreenActive = true;
+			this.fadeOut();
 		}
 
-		this.lastScrollTop = this.screen.scrollTop;
-		this.lastScrollHeight = this.screen.scrollHeight;
+		else {
+			if (this.alternateScreenActive != null) {
+				this.onTerminalUpdate();
+			}
+
+			this.alternateScreenActive = false;
+		}
 	}
 
 
@@ -255,7 +273,7 @@ export class TerminusHtermScrollbar extends HTMLElement {
 	}
 
 	terminalNeedsScrollbar() : boolean {
-		return this.screen.scrollHeight > this.screen.offsetHeight;
+		return this.screen.scrollHeight > this.screen.offsetHeight && ! this.alternateScreenActive;
 	}
 
 
