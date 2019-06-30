@@ -1,7 +1,7 @@
 
 import { Injectable } from '@angular/core';
 import { Logger, LogService } from 'terminus-core';
-import { TerminalDecorator, TerminalTabComponent } from 'terminus-terminal';
+import { TerminalDecorator, TerminalTabComponent, HTermFrontend } from 'terminus-terminal';
 import { TerminusHtermScrollbar } from './scrollbar';
 
 const scrollbars: WeakMap<TerminalTabComponent, TerminusHtermScrollbar> = new WeakMap();
@@ -19,7 +19,11 @@ export class ScrollbarDecorator extends TerminalDecorator {
 	}
 
 	attach(terminal: TerminalTabComponent) : void {
-		this.logger.debug(`New terminal tab discovered id=${terminal.id}`);
+		if (!(terminal.frontend instanceof HTermFrontend)) {
+			return
+		}
+
+		this.logger.debug(`New terminal tab discovered id=${terminal}`);
 
 		const scrollbar = document.createElement('terminus-hterm-scrollbar') as TerminusHtermScrollbar;
 
@@ -30,7 +34,11 @@ export class ScrollbarDecorator extends TerminalDecorator {
 	}
 
 	detach(terminal: TerminalTabComponent) : void {
-		this.logger.debug(`Disconnecting from closed tab id=${terminal.id}`)
+		if (!(terminal.frontend instanceof HTermFrontend)) {
+			return
+		}
+
+		this.logger.debug(`Disconnecting from closed tab id=${terminal}`)
 
 		const scrollbar = scrollbars.get(terminal);
 
